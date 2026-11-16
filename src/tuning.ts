@@ -16,7 +16,6 @@ export const DEFS = {
   lookBase: [10, 2, 30, 1, "Controls", "Course look-ahead m"],
   lookTime: [0.6, 0, 2, 0.05, "Controls", "…plus speed × s"],
   assistAir: [6, 0, 20, 0.5, "Controls", "Air drift toward line m/s²"],
-  holdBuffer: [0.35, 0, 1, 0.05, "Controls", "Early-press buffer s"],
 
   // --- anchor choice
   rangeMax: [30, 10, 60, 1, "Anchors", "Max tether range m"],
@@ -72,12 +71,18 @@ export const DEFS = {
   camRoll: [0.12, 0, 0.6, 0.01, "Camera", "Roll into lean (rad)"],
   camDistSpeed: [2.5, 0, 10, 0.5, "Camera", "Pull back at top speed m"],
 
+  jogTurn: [0.08, 0.01, 0.5, 0.01, "Ground", "Jog turn rate per tick"],
+  jogLook: [8, 2, 30, 1, "Ground", "Jog looks ahead m"],
+  capDrag: [0.25, 0, 2, 0.05, "Swing", "Drag per m/s over the cap"],
+  camZoomLag: [0.5, 0.05, 2, 0.05, "Camera", "Distance / FOV lag s"],
+  camRollLag: [0.25, 0.05, 2, 0.05, "Camera", "Roll lag s"],
+  camClear: [0.8, 0.2, 4, 0.1, "Camera", "Clearance over roofs m"],
   // --- paint
   paintMinSpeed: [9, 0, 30, 0.5, "Paint", "No paint below m/s"],
   paintFullSpeed: [30, 10, 60, 1, "Paint", "Full paint at m/s"],
   paintRadius: [18, 2, 30, 0.5, "Paint", "Paint reach at full speed m"],
   paintRadiusMin: [6, 0, 15, 0.5, "Paint", "Paint reach at min speed m"],
-  paintLead: [0.4, 0, 1.5, 0.05, "Paint", "Paint lands this many s ahead"],
+  paintLead: [0.6, 0, 1.5, 0.05, "Paint", "Paint lands this many s ahead"],
   bestShow: [0.55, 0, 1, 0.05, "Paint", "How strongly the best run shows during a run"],
 
   // --- look
@@ -90,7 +95,6 @@ export const DEFS = {
   pixelSnap: [1, 0, 1, 1, "Look", "Splat shape", ["Disc", "Pixel-snapped square"]],
   drawDist: [420, 100, 800, 20, "Look", "Draw distance m"],
   dither: [0.35, 0, 1, 0.05, "Look", "Palette dither"],
-  outline: [0.5, 0, 1, 0.05, "Look", "Depth outline"],
 
   // --- sound
   volume: [0.7, 0, 1, 0.05, "Sound", "Volume"],

@@ -30,7 +30,7 @@ run of each street stays painted. Filling the streets is the goal.
   - **C · Timing only** — the thumb never leans; the game steers along the street. The
     floor: pure rhythm.
 - Quiet assists (all tunable, all in `src/tuning.ts`): the reticle shows exactly the anchor a
-  press would take (the same function picks it); an early press is buffered; aim blends your
+  press would take (the same function picks it); a held thumb keeps reaching, so the first anchor to come into reach takes it; aim blends your
   velocity with the course ahead, so corners are anticipated; a gentle auto-steer pulls the
   swing back toward the street; the rope reels in so the arc clears the roofs below.
 
@@ -61,6 +61,7 @@ carries a pale colour, a painted colour and its own random threshold, and shows 
 colour when the map under it exceeds that threshold — so partial paint reads as stipple,
 and the edge of your wake is dithered by the splats themselves. During a run your best
 previous paint shows as a lighter stipple; your current run paints on top at full strength.
+The disc lands a little ahead of you, because that is where the camera is looking.
 A run's fill is the mean paint over the cells within 13 m of its street.
 
 ## Look

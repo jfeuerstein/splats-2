@@ -25,7 +25,9 @@ Spark API facts (verified against the installed version): docs/spark-notes.md.
 - `npm run dev` — dev server. `npm run build` — typecheck + production build to dist/.
 - `npm run check` — `tsc --noEmit` + unit tests. Must pass before every commit.
 - `npm run shoot` — screenshots / frame sequences at phone size (see `node tools/shoot.mjs --help`).
-- `npm run touch` — emulated touch test. `npm run bot` — plays every run from its script in the real page.
+- `npm run touch` — emulated touch test. `npm run bot` — plays every run from its script in the real page. `npm run offline` — offline boot test.
+- `node tools/gameshot.mjs <run> <fromTick> <count> <stepTicks>` — frame sequence of the real game replaying a run (out/game/).
+- `npm run scripts` — regenerate the recorded bot scripts after ANY change to the sim, the district or default tuning.
 - `npx vite-node tools/simtry.ts [-v] [course]` — fast sim-only bot summary for course design.
 
 ## Delegation

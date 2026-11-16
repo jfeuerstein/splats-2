@@ -189,6 +189,15 @@ function attach(s: SimState, p: Pick, T: Tuning): void {
 }
 
 /** Advance one fixed tick. */
+/**
+ * The lean used to choose an anchor: the stronger of the thumb's lean now and the lean
+ * remembered from the last release. `step` and the reticle both use this, so the reticle
+ * always marks the anchor a press would take.
+ */
+export function aimFor(s: SimState, leanIn: number): number {
+  return Math.abs(leanIn) > Math.abs(s.bias) ? leanIn : s.bias;
+}
+
 export function step(s: SimState, input: Input, w: SimWorld, T: Tuning): void {
   s.ev = 0;
   const t = s.tick * DT;
@@ -199,7 +208,7 @@ export function step(s: SimState, input: Input, w: SimWorld, T: Tuning): void {
   s.holdPrev = hold;
 
   // --- press / release
-  if (pressed) s.buffer = Math.round(T.holdBuffer * HZ);
+  if (pressed) s.buffer = 1;
   if (released) {
     if (s.mode === SWING) {
       s.mode = AIR;
@@ -214,11 +223,9 @@ export function step(s: SimState, input: Input, w: SimWorld, T: Tuning): void {
     }
     s.buffer = -1;
   }
+  // A held thumb keeps reaching: the first anchor to come into reach takes it.
   if (hold && s.mode !== SWING && s.buffer >= 0) {
-    const aim = pressed || Math.abs(leanIn) > Math.abs(s.bias) ? leanIn : s.bias;
-    if (pickAnchor(s, aim, w, T, _pick)) attach(s, _pick, T);
-    else if (s.buffer > 0) s.buffer--;
-    else s.buffer = -1;
+    if (pickAnchor(s, aimFor(s, leanIn), w, T, _pick)) attach(s, _pick, T);
   }
   if (hold) s.lean = leanIn;
   else {
@@ -233,9 +240,9 @@ export function step(s: SimState, input: Input, w: SimWorld, T: Tuning): void {
     // --- jog along the course, steering back to the line
     let sp = Math.hypot(s.vx, s.vz);
     sp = T.jog + (sp - T.jog) * Math.exp(-T.groundDecel * DT);
-    const cg = carrot(s, w, T, 8);
+    const cg = carrot(s, w, T, T.jogLook);
     // Turn the heading toward the course at a limited rate so the jog rounds corners.
-    let dx = s.hx + (cg.x - s.hx) * 0.08, dz = s.hz + (cg.z - s.hz) * 0.08;
+    let dx = s.hx + (cg.x - s.hx) * T.jogTurn, dz = s.hz + (cg.z - s.hz) * T.jogTurn;
     const dl = Math.hypot(dx, dz) || 1;
     dx /= dl; dz /= dl;
     s.hx = dx; s.hz = dz;
@@ -287,7 +294,7 @@ export function step(s: SimState, input: Input, w: SimWorld, T: Tuning): void {
     s.vx += ax * DT; s.vy += ay * DT; s.vz += az * DT;
     let drag = T.drag;
     const sp2 = Math.hypot(s.vx, s.vy, s.vz);
-    if (sp2 > T.speedCap) drag += (sp2 - T.speedCap) * 0.25;
+    if (sp2 > T.speedCap) drag += (sp2 - T.speedCap) * T.capDrag;
     const dk = Math.exp(-drag * DT);
     s.vx *= dk; s.vy *= dk; s.vz *= dk;
     s.px += s.vx * DT; s.py += s.vy * DT; s.pz += s.vz * DT;

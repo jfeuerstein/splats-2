@@ -34,7 +34,7 @@ const CSS = `
 .wl .btn{pointer-events:auto;cursor:pointer;touch-action:manipulation}
 
 /* picker */
-.wl .menu{position:absolute;inset:0;background:rgba(244,239,230,.88);display:flex;flex-direction:column;pointer-events:auto;
+.wl .menu{position:absolute;inset:0;background:rgba(244,239,230,.3);display:flex;flex-direction:column;pointer-events:auto;
   padding:calc(var(--st) + var(--px)*6) calc(var(--sr) + var(--px)*8) calc(var(--sb) + var(--px)*5) calc(var(--sl) + var(--px)*8);
   overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;transition:opacity .15s steps(3),visibility 0s}
 .wl .menu.hid{transition:opacity .15s steps(3),visibility 0s .15s}

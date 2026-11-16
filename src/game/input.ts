@@ -14,6 +14,9 @@ function shape(v: number): number {
   return Math.sign(v) * Math.pow(n, T.leanCurve);
 }
 
+/** Size (CSS px) of the top-left corner reserved for the tuning-sheet triple tap. */
+const CORNER = 72;
+
 export class TouchInput {
   hold = false;
   lean = 0;
@@ -23,6 +26,7 @@ export class TouchInput {
   private keys = new Set<string>();
   /** Counts presses; the app uses it to start a run / dismiss cards. */
   presses = 0;
+  private latch = false;
 
   constructor(private el: HTMLElement) {
     const o = { passive: false } as const;
@@ -34,17 +38,25 @@ export class TouchInput {
     for (const t of ["touchstart", "touchmove", "touchend", "gesturestart", "contextmenu", "dblclick"]) el.addEventListener(t, (e) => e.preventDefault(), o);
     window.addEventListener("keydown", (e) => { if (!e.repeat && e.code === "Space") this.presses++; this.keys.add(e.code); });
     window.addEventListener("keyup", (e) => this.keys.delete(e.code));
-    window.addEventListener("blur", () => { this.keys.clear(); this.id = -1; this.hold = false; });
+    // iOS can suspend a Home Screen app mid-hold without pointerup or blur.
+    const drop = () => { this.keys.clear(); this.id = -1; this.hold = false; this.lean = 0; };
+    window.addEventListener("blur", drop);
+    window.addEventListener("pagehide", drop);
+    document.addEventListener("visibilitychange", () => { if (document.hidden) drop(); });
   }
 
   private down = (e: PointerEvent) => {
     e.preventDefault();
-    if (this.id !== -1) return;
+    // The top-left corner belongs to the tuning-sheet gesture.
+    if (e.clientX < CORNER && e.clientY < CORNER) return;
+    // A second finger is ignored; a new primary pointer replaces a stale one.
+    if (this.id !== -1 && !e.isPrimary) return;
     this.id = e.pointerId;
     try { this.el.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
     this.downX = this.curX = e.clientX;
     this.downY = this.curY = e.clientY;
     this.hold = true;
+    this.latch = true;
     this.presses++;
     this.update();
   };
@@ -76,8 +88,10 @@ export class TouchInput {
       out.lean = (k.has("ArrowRight") ? 1 : 0) - (k.has("ArrowLeft") ? 1 : 0);
       return out;
     }
-    out.hold = this.hold;
-    out.lean = this.hold ? this.lean : 0;
+    // A tap shorter than a frame still counts as one tick of hold.
+    out.hold = this.hold || this.latch;
+    this.latch = false;
+    out.lean = out.hold ? this.lean : 0;
     return out;
   }
 }

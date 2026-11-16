@@ -33,7 +33,7 @@ describe("the six runs", () => {
       const fill = (script: number[]) => {
         const map = newPaint();
         runScript(w, T, script, 200, (s) => {
-          if (s.tick % 6 === 0) stampRun(map, s.px, s.pz, s.vx, s.vy, s.vz, T);
+          if (s.tick % 12 === 0) stampRun(map, s.px, s.pz, s.vx, s.vy, s.vz, T);
         });
         return coverage(map, mask);
       };

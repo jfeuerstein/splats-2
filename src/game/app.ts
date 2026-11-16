@@ -1,7 +1,7 @@
 // The game: states (menu / ready / run / done), the fixed-step loop, and the glue between
 // simulation, view, input, UI, saves and sound.
 import { T, loadTuning } from "../tuning";
-import { DT, HZ, SWING, EV_RELEASE, initState, pickAnchor, steerWant, step, type Input, type Pick, type SimState } from "../sim/sim";
+import { DT, HZ, SWING, EV_RELEASE, aimFor, initState, pickAnchor, steerWant, step, type Input, type Pick, type SimState } from "../sim/sim";
 import { makeBot, pushScript } from "../sim/bot";
 import type { SimWorld } from "../sim/world";
 import { stampRun, coverage, courseMask, extract, mergeMax, newPaint, stamp } from "../sim/paint";
@@ -14,12 +14,13 @@ import { Trail, drawAnchors, drawGhost, drawReticle, drawRope, drawRunner, type 
 import { createUi } from "./ui";
 import { createSheet, installSheetGesture } from "./sheet";
 import { GHOST_HZ, loadSave, recordRun, storeSave, wipeSave } from "./save";
-import { createAudio } from "./audio";
+import { createAudio, type AudioFrame } from "./audio";
 import { runBenchmark } from "./bench";
 
 type Mode = "menu" | "ready" | "run" | "done";
 
 const q = new URLSearchParams(location.search);
+const PAINT_EVERY = 12; // ticks between paint stamps (10 Hz)
 const manual = q.has("manual"); // tools drive time; no real-time stepping
 
 export interface Game {
@@ -69,6 +70,7 @@ async function boot(): Promise<void> {
   const tickIn: Input = { hold: false, lean: 0 };
   const pk: Pick = { anchor: -1, u: 0, score: 0, x: 0, y: 0, z: 0 };
   let lastPresses = 0;
+  let auto = q.has("bot");
 
   // ---------------------------------------------------------------- paint bookkeeping
   /** Fill the displayed map from saved best runs. scale < 1 shows them as a lighter stipple. */
@@ -103,9 +105,9 @@ async function boot(): Promise<void> {
     s = initState(w);
     cam.reset(s);
     trail.reset();
-    script = []; ghostRec = [];
+    script = []; ghostRec = [Math.round(s.px * 10), Math.round(s.py * 10), Math.round(s.pz * 10)];
     live.fill(0);
-    hinted = false; fillShown = 0; painting = 0;
+    hinted = false; fillShown = 0; painting = 0; result = null; doneAt = 0;
     lastPresses = input.presses;
   }
 
@@ -121,13 +123,23 @@ async function boot(): Promise<void> {
     audio.ui("start");
   }
 
+  /** Called on the tick the run ends: the save happens now, so a quick restart loses nothing. */
+  let result: { name: string; fill: number; best: number; isBest: boolean; hasNext: boolean } | null = null;
   function finishRun(): void {
     const fill = coverage(live, masks[index]);
     const id = d.courses[index].id;
-    const isBest = recordRun(save, id, { best: fill, paint: extract(live, masks[index]), ghost: Int16Array.from(ghostRec), script: script.slice(), ticks: s.tick });
-    storeSave(save);
-    ui.showResult({ name: d.courses[index].name, fill, best: save.runs[id].best, isBest, hasNext: index < d.courses.length - 1 });
-    if (isBest) audio.ui("best");
+    let isBest = false;
+    if (!auto) { // a bot run (benchmark, ?bot) is never saved as the player's
+      isBest = recordRun(save, id, { best: fill, paint: extract(live, masks[index]), ghost: Int16Array.from(ghostRec), script: script.slice(), ticks: s.tick });
+      storeSave(save);
+    }
+    result = { name: d.courses[index].name, fill, best: save.runs[id]?.best ?? fill, isBest, hasNext: index < d.courses.length - 1 };
+  }
+  function showResult(): void {
+    if (!result) return;
+    ui.showResult(result);
+    if (result.isBest) audio.ui("best");
+    result = null;
   }
 
   // ---------------------------------------------------------------- tuning sheet
@@ -164,12 +176,11 @@ async function boot(): Promise<void> {
       audio.event(s.ev, Math.hypot(s.vx, s.vy, s.vz));
       if (s.ev & EV_RELEASE && !hinted) { hinted = true; ui.hideHint(); }
     }
-    if (s.tick % (HZ / GHOST_HZ) === 0) {
-      ghostRec.push(Math.round(s.px * 10), Math.round(s.py * 10), Math.round(s.pz * 10));
-      if (!s.finished) {
-        painting = stampRun(live, s.px, s.pz, s.vx, s.vy, s.vz, T);
-        if (painting > 0) { stampRun(view.paint, s.px, s.pz, s.vx, s.vy, s.vz, T); view.paintDirty(); }
-      }
+    if (s.tick % (HZ / GHOST_HZ) === 0) ghostRec.push(Math.round(s.px * 10), Math.round(s.py * 10), Math.round(s.pz * 10));
+    // Paint 10 times a second: each change re-uploads the map and makes Spark rebuild.
+    if (s.tick % PAINT_EVERY === 0 && !s.finished) {
+      painting = stampRun(live, s.px, s.pz, s.vx, s.vy, s.vz, T);
+      if (painting > 0) { stampRun(view.paint, s.px, s.pz, s.vx, s.vy, s.vz, T); view.paintDirty(); }
     }
   }
 
@@ -196,13 +207,12 @@ async function boot(): Promise<void> {
     c.up.set(upx, upy, upz);
     c.lookAt(p.lx, p.ly, p.lz);
     if (Math.abs(c.fov - p.fov) > 0.01) { c.fov = p.fov; c.updateProjectionMatrix(); }
-    const st = view.stats();
     ctx.time = time;
     ctx.cx = p.px; ctx.cy = p.py; ctx.cz = p.pz;
     ctx.fx = fx; ctx.fy = fy; ctx.fz = fz;
     ctx.rx = rx * cr - ux * sr; ctx.ry = -uy * sr; ctx.rz = rz * cr - uz * sr;
     ctx.ux = upx; ctx.uy = upy; ctx.uz = upz;
-    ctx.pxPerM = (2 * Math.tan((p.fov * Math.PI) / 360)) / (st.lowH || 420);
+    ctx.pxPerM = (2 * Math.tan((p.fov * Math.PI) / 360)) / (canvas.height || 420);
 
     view.dyn.begin();
     const held = s.mode === SWING ? w.course.anchors[s.anchor] : null;
@@ -212,22 +222,27 @@ async function boot(): Promise<void> {
     drawRope(ctx, s, x, y, z);
     drawRunner(ctx, s, x, y, z);
     trail.update(ctx, s, x, y, z, dt, mode === "menu" ? 0 : painting);
-    if (s.mode !== SWING && mode !== "done" && pickAnchor(s, input.hold ? input.lean : s.bias, w, T, pk)) drawReticle(ctx, pk.x, pk.y, pk.z, mode === "ready");
+    if (s.mode !== SWING && mode !== "done" && pickAnchor(s, aimFor(s, T.scheme === 2 ? steerWant(s, w, T) : input.hold ? input.lean : 0), w, T, pk)) drawReticle(ctx, pk.x, pk.y, pk.z, mode === "ready");
     view.dyn.end();
     view.render(time);
   }
 
   // ---------------------------------------------------------------- main loop
-  let last = 0, acc = 0, fps = 60, worst = 0, worstT = 0;
+  let last = 0, acc = 0, fps = 60, worst = 0, worstT = 0, fillClock = 0;
+  const af: AudioFrame = { speed: 0, mode: 0, vy: 0, lean: 0, painting: 0, fill: 0, inRun: false };
   function frame(now: number): void {
     requestAnimationFrame(frame);
     const t = now / 1000;
     let dt = t - last;
     last = t;
-    if (dt > 0.1 || dt <= 0) dt = 1 / 60; // tab was hidden, or first frame
-    fps += (1 / dt - fps) * 0.05;
-    if (dt * 1000 > worst || t - worstT > 3) { worst = dt * 1000; worstT = t; }
-    if (benchHook) benchHook(dt);
+    // Statistics see the real frame time; the simulation gets a clamped copy.
+    if (dt > 0 && dt < 2) {
+      fps += (1 / dt - fps) * 0.05;
+      if (dt * 1000 > worst || t - worstT > 3) { worst = dt * 1000; worstT = t; }
+      if (benchHook) benchHook(dt);
+    }
+    if (dt > 0.1 || dt <= 0) dt = 1 / 60; // tab was hidden, a long stall, or the first frame
+    if (sheet.isOpen) lastPresses = input.presses; // touches while tuning never start a run
 
     if (mode === "ready") {
       if (input.presses !== lastPresses && !sheet.isOpen) { mode = "run"; audio.unlock(); }
@@ -244,39 +259,41 @@ async function boot(): Promise<void> {
         } else if (mode === "run") {
           input.read(raw);
           tickIn.hold = raw.hold;
-          tickIn.lean = T.scheme === 2 ? (raw.hold ? steerWant(s, w, T) : 0) : raw.lean;
+          // Hundredths, like the stored script, so a saved run replays exactly.
+          tickIn.lean = Math.round((T.scheme === 2 ? (raw.hold ? steerWant(s, w, T) : 0) : raw.lean) * 100) / 100 + 0;
           tick(tickIn);
         } else {
           tickIn.hold = false; tickIn.lean = 0;
           step(s, tickIn, w, T);
         }
-        if (mode === "run" && s.finished) { mode = "done"; doneAt = t; }
+        if (mode === "run" && s.finished) { mode = "done"; doneAt = t; finishRun(); }
       }
-      if (mode === "done" && doneAt && t - doneAt > 0.9) { doneAt = 0; finishRun(); }
+      if (mode === "done" && doneAt && t - doneAt > 0.9) { doneAt = 0; showResult(); }
     } else acc = 0;
 
-    if (mode === "run" || mode === "done") {
+    if ((mode === "run" || mode === "done") && ++fillClock % 15 === 0) { // the sum is 260k cells
       const f = coverage(live, masks[index]);
       if (Math.abs(f - fillShown) >= 0.005) { fillShown = f; ui.setFill(f); }
     }
-    audio.frame({ speed: Math.hypot(s.vx, s.vy, s.vz), mode: s.mode as 0 | 1 | 2, vy: s.vy, lean: s.lean, painting: mode === "run" ? painting : 0, fill: fillShown, inRun: mode === "run" }, dt);
+    af.speed = Math.hypot(s.vx, s.vy, s.vz); af.mode = s.mode as 0 | 1 | 2; af.vy = s.vy; af.lean = s.lean; af.painting = mode === "run" ? painting : 0; af.fill = fillShown; af.inRun = mode === "run";
+    audio.frame(af, dt);
     draw(mode === "ready" ? 0 : acc, dt, t);
   }
 
   // ---------------------------------------------------------------- tool / benchmark hooks
-  let auto = q.has("bot");
   let benchHook: ((dt: number) => void) | null = null;
-  const game: Game & { setAuto(on: boolean): void; onFrame(f: ((dt: number) => void) | null): void } = {
+  const game: Game & { startNow(): void; setAuto(on: boolean): void; onFrame(f: ((dt: number) => void) | null): void } = {
     view,
     mode: () => mode,
     state: () => s,
     world: () => w,
     pick: (i) => startRun(i),
     restart: () => startRun(index),
+    startNow: () => { if (mode === "ready") mode = "run"; },
     advance(ticks, hold, lean) {
       if (mode === "ready") mode = "run";
       tickIn.hold = hold; tickIn.lean = lean;
-      for (let i = 0; i < ticks; i++) { if (mode === "run") tick(tickIn); else step(s, tickIn, w, T); if (mode === "run" && s.finished) { mode = "done"; finishRun(); } }
+      for (let i = 0; i < ticks; i++) { if (mode === "run") tick(tickIn); else step(s, tickIn, w, T); if (mode === "run" && s.finished) { mode = "done"; finishRun(); showResult(); } }
       draw(0, ticks * DT, s.tick * DT);
     },
     async play(sc, every = 0) {
@@ -286,7 +303,7 @@ async function boot(): Promise<void> {
         tickIn.hold = sc[i + 1] === 1; tickIn.lean = sc[i + 2] / 100;
         for (let k = 0; k < sc[i] && mode === "run"; k++) {
           tick(tickIn);
-          if (s.finished) { mode = "done"; finishRun(); }
+          if (s.finished) { mode = "done"; finishRun(); showResult(); }
           else if (every && s.tick % every === 0) { draw(0, every * DT, s.tick * DT); await view.settle(); }
         }
       }
@@ -301,13 +318,14 @@ async function boot(): Promise<void> {
     onFrame: (f) => { benchHook = f; },
   };
 
-  window.addEventListener("resize", () => view.resize());
-  window.addEventListener("orientationchange", () => view.resize());
+  const resize = () => { view.resize(); ui.setPixelScale(Math.max(1, Math.round(canvas.clientWidth / (canvas.width || 1)))); };
+  window.addEventListener("resize", resize);
+  window.addEventListener("orientationchange", resize);
   document.addEventListener("visibilitychange", () => { if (document.hidden) audio.suspend(); else { audio.resume(); last = 0; } });
   window.addEventListener("pointerup", () => audio.unlock(), { passive: true });
   audio.setVolume(T.volume, T.music);
   view.setBudget(T.budget * 1000);
-  view.resize();
+  resize();
 
   if (q.has("run")) startRun(Math.max(0, Math.min(d.courses.length - 1, Number(q.get("run")) || 0)));
   else openMenu();

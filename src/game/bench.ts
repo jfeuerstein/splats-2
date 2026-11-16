@@ -6,6 +6,7 @@ import type { SimWorld } from "../sim/world";
 interface BenchGame {
   view: { setBudget(n: number): void; stats(): { live: number; budget: number; lowW: number; lowH: number } };
   pick(i: number): void;
+  startNow(): void;
   setAuto(on: boolean): void;
   onFrame(f: ((dt: number) => void) | null): void;
 }
@@ -22,6 +23,7 @@ export async function runBenchmark(game: BenchGame, _w: SimWorld, budgets = [40,
   for (const b of budgets) {
     game.view.setBudget(b * 1000);
     game.pick(0);
+    game.startNow(); // leave "ready": the bot flies from the first frame
     await wait(1500); // settle: tiles fill, sort catches up
     const dts: number[] = [];
     let live = 0;

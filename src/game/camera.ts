@@ -38,10 +38,10 @@ export class FollowCam {
     this.ox += (x - this.ox) * kp; this.oy += (y - this.oy) * kp; this.oz += (z - this.oz) * kp;
 
     const f = Math.min(1, sp / T.speedCap);
-    const kd = 1 - Math.exp(-dt / 0.5);
+    const kd = 1 - Math.exp(-dt / T.camZoomLag);
     this.dist += (T.camDist + f * T.camDistSpeed - this.dist) * kd;
     this.fov += (T.camFov + f * T.camFovSpeed - this.fov) * kd;
-    this.roll += (-s.lean * T.camRoll - this.roll) * (1 - Math.exp(-dt / 0.25));
+    this.roll += (-s.lean * T.camRoll - this.roll) * (1 - Math.exp(-dt / T.camRollLag));
 
     // Behind and above; pull in if that would put the camera inside a building.
     let d = this.dist;
@@ -50,8 +50,8 @@ export class FollowCam {
       cx = this.ox - hx * d; cz = this.oz - hz * d;
       cy = this.oy + T.camHeight - this.dy * d * 0.6;
       const h = heightAt(w, cx, cz);
-      if (cy > h + 0.8) break;
-      if (h - this.oy < 3) { cy = h + 0.8; break; } // low roof: rise over it instead
+      if (cy > h + T.camClear) break;
+      if (h - this.oy < 3) { cy = h + T.camClear; break; } // low roof: rise over it instead
       d *= 0.7;
     }
     const p = this.pose;

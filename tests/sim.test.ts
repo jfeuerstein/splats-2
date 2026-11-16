@@ -284,7 +284,7 @@ describe("pickAnchor", () => {
 
 // ---------------------------------------------------------------- 10. early-press buffer
 
-describe("early-press buffer", () => {
+describe("early press", () => {
   const T = defaults();
   /** Tick at which an anchor at distance d ahead first becomes pickable on the free-fall path. */
   function firstInRange(d: number): number {
@@ -304,7 +304,7 @@ describe("early-press buffer", () => {
     throw new Error("no suitable distance");
   }
 
-  it("attaches without a second press if the anchor comes into range within the buffer", () => {
+  it("attaches without a second press when the anchor comes into range", () => {
     const d = findD(Math.round(0.1 / DT), Math.round(0.25 / DT));
     const w = world({ anchors: [point(0, 32, -d)] });
     const s = initState(w);
@@ -314,20 +314,18 @@ describe("early-press buffer", () => {
       if (s.ev & EV_ATTACH && attachTick < 0) attachTick = i;
     }
     expect(attachTick).toBeGreaterThan(Math.round(0.1 / DT) - 2);
-    expect(attachTick * DT).toBeLessThanOrEqual(T.holdBuffer + 2 * DT);
+    expect(attachTick * DT).toBeLessThanOrEqual(0.25 + 2 * DT);
     expect(s.mode).toBe(SWING);
     expect(s.anchor).toBe(0);
   });
 
-  it("does not attach if the anchor takes longer than the buffer", () => {
-    const d = findD(Math.round((T.holdBuffer + 0.15) / DT), Math.round(1 / DT));
+  it("keeps reaching while held: attaches however long the anchor takes to come into reach", () => {
+    const d = findD(Math.round(0.5 / DT), Math.round(1 / DT));
     const w = world({ anchors: [point(0, 32, -d)] });
     const s = initState(w);
-    for (let i = 0; i < 150; i++) {
-      step(s, HOLD, w, T);
-      expect(s.mode).not.toBe(SWING);
-      expect(s.ev & EV_ATTACH).toBe(0);
-    }
+    let attached = false;
+    for (let i = 0; i < 150; i++) { step(s, HOLD, w, T); if (s.ev & EV_ATTACH) attached = true; }
+    expect(attached).toBe(true);
   });
 });
 

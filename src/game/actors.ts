@@ -22,6 +22,7 @@ export interface DrawCtx {
 }
 
 const INDIGO = 12, WHITE = 15, PINK = 13, PALE = 0, PALE2 = 1, GREY = 3;
+const SPARKS = [PINK, 8, 7, WHITE];
 const CLOTH = [6, 7, 8, 9, 11, 13, 15, 10];
 
 function h01(n: number): number {
@@ -182,9 +183,17 @@ export function drawRope(c: DrawCtx, s: SimState, x: number, y: number, z: numbe
   if (s.mode !== SWING) return;
   const dx = s.ax - x, dy = s.ay - y, dz = s.az - z;
   const l = Math.hypot(dx, dy, dz) || 1;
-  const n = Math.max(4, Math.min(28, Math.round(l / 0.7)));
-  const hx = x + (dx / l) * 1.85, hy = y + (dy / l) * 1.85, hz = z + (dz / l) * 1.85;
-  seg(c, hx, hy, hz, s.ax, s.ay, s.az, n, 0.07, WHITE);
+  // A continuous line about two low-res pixels wide at any distance: step by the dot's
+  // own diameter, which grows with distance from the camera.
+  const ux = dx / l, uy = dy / l, uz = dz / l;
+  let t = 1.85;
+  for (let i = 0; i < 320 && t < l; i++) {
+    const px = x + ux * t, py = y + uy * t, pz = z + uz * t;
+    const d = (px - c.cx) * c.fx + (py - c.cy) * c.fy + (pz - c.cz) * c.fz;
+    const r = Math.max(0.02, d * c.pxPerM);
+    c.dyn.add(px, py, pz, r, WHITE);
+    t += r * 1.8;
+  }
 }
 
 /** Marks the anchor a press would grab. */
@@ -231,7 +240,7 @@ export class Trail {
       this.acc -= 1;
       const i = this.head = (this.head + 1) % 24;
       this.x[i] = x + (h01(i * 31 + ((c.time * 60) | 0)) - 0.5) * 0.8; this.y[i] = y + 0.5 + (h01(i * 17 + ((c.time * 61) | 0)) - 0.5) * 0.8; this.z[i] = z + (h01(i * 13 + ((c.time * 59) | 0)) - 0.5) * 0.8;
-      this.age[i] = 0; this.col[i] = [PINK, 8, 7, WHITE][i % 4];
+      this.age[i] = 0; this.col[i] = SPARKS[i % 4];
     }
     for (let i = 0; i < 24; i++) {
       const a = (this.age[i] += dt);
