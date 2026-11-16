@@ -11,6 +11,7 @@
     "check": "tsc --noEmit && vitest run",
     "shoot": "node tools/shoot.mjs",
     "touch": "node tools/touch-test.mjs",
+    "offline": "node tools/offline-test.mjs",
     "bot": "node tools/bot.mjs",
     "scripts": "vite-node tools/gen-scripts.ts"
   },

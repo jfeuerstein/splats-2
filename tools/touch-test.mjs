@@ -42,7 +42,9 @@ async function centerOf(page, sel) {
   const b = await page.locator(sel).first().boundingBox();
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 }
+const only = arg('--only', '');
 async function runCase(name, fn) {
+  if (only && !name.startsWith(only)) return;
   let r;
   try { r = await fn(); } catch (e) { r = { ok: false, msg: 'exception: ' + (e.message || e) }; }
   results.push(r.ok);
@@ -153,8 +155,13 @@ try {
     const c = await openTuned('?run=0', null);
     try {
       // Start from a running state so a leaked press is detectable via tick.
-      for (let i = 0; i < 3; i++) { await c.t.tap(30, 30, 30); await sleep(60); }
-      const opened = await waitFor(c.page, () => !!document.querySelector('.wl-sheet.wl-open'), null, 20000);
+      // Headless frames are slow; the gesture needs 3 taps inside 600 ms of event time, so retry a few times.
+      await c.page.evaluate(() => new Promise((r) => { let n = 0; const f = () => (++n >= 4 ? r(true) : requestAnimationFrame(f)); requestAnimationFrame(f); }));
+      let opened = false, tries = 0;
+      while (!opened && tries++ < 5) {
+        for (let i = 0; i < 3; i++) { await c.t.tap(30, 30, 30); await sleep(60); }
+        opened = await waitFor(c.page, () => !!document.querySelector('.wl-sheet.wl-open'), null, 8000);
+      }
       await snap(c.page, 'f-sheet-open');
       const g0 = await G(c.page);
       // touch the sheet: tap its centre, and slide on it
@@ -167,7 +174,7 @@ try {
       await snap(c.page, 'f-sheet-touched');
       const m0 = g0.mode;
       const ok = opened && g1.mode === 'ready' && g1.tick === 0;
-      return { ok, msg: `sheet opened=${opened}; mode after the 3 taps ${m0} (tick ${g0.tick}); after touching sheet mode ${g1.mode}, tick ${g1.tick}` };
+      return { ok, msg: `sheet opened=${opened} (attempt ${tries}); mode after the 3 taps ${m0} (tick ${g0.tick}); after touching sheet mode ${g1.mode}, tick ${g1.tick}` };
     } finally { await c.close(); }
   });
 

@@ -113,6 +113,14 @@ self.addEventListener("fetch", (e) => {
   if (url.origin !== self.location.origin) return;
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
+    // The page itself comes from the network when there is one (3 s limit), so a new
+    // build is picked up at the next launch instead of being pinned by the cache.
+    if (req.mode === "navigate") {
+      try {
+        const res = await Promise.race([fetch(req), new Promise((_, no) => setTimeout(no, 3000))]);
+        if (res && res.ok) { cache.put("./index.html", res.clone()).catch(() => {}); return res; }
+      } catch (err) { /* offline or slow: fall through to the cache */ }
+    }
     const hit = await cache.match(req, { ignoreSearch: true });
     if (hit) return hit;
     try {

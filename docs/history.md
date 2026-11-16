@@ -94,3 +94,53 @@ before you see them; and the lean at release biases the next grab for about a se
 inputs: 24–40 s each, 79–88 % fill. Standing still finishes too (the runner jogs): 76–110 s.
 The bot is close to a perfect player, so a person should land in the 30–90 s target; if a
 clean human run is under 30 s, the streets need lengthening (tell me).
+
+**Blind review (opus, plan + diff only).** Nineteen findings; the ones that mattered:
+the benchmark never left the start line and clamped away every stall over 100 ms (so the
+only performance evidence would have been wrong); restarting within 0.9 s of the finish
+lost the run; the reticle and the grab chose with different lean; a saved script could not
+replay because lean was stored rounded but played unrounded; a thumb could stay "held"
+after an app switch; the offline cache pinned old builds. All fixed. One rule changed as a
+result: a held thumb now keeps reaching and takes the first anchor that comes into reach
+(before, a press expired after 0.35 s and you had to tap again), which is what the plan
+said and is kinder to the low floor.
+
+## M2 — colour and the real look
+
+M0's pipeline is the real look, so M2 was about colour in play. Each building has a hue
+family (lit / mid / shade face) and a contrasting roof; the street has its own. Every
+splat carries its pale and painted colour and a random threshold, so paint strength reads
+as stipple density: about 85 % solid at cruising speed, fully solid only near 30 m/s.
+Checked in frame sequences of the real game (`node tools/gameshot.mjs`): colour climbs the
+walls beside the runner and floods the street ahead; consecutive frames are steady; the
+rope is one clean line. Two families used sky colours and looked like holes in the
+buildings; replaced.
+
+## M3 — the district
+
+Six runs on one shared 540 m grid, each built round one idea (table in the plan). Run
+picker with fill bars, saves (best fill, best paint, ghost of the best run, play count),
+ghost drawn during a run, synthesised sound, offline shell with generated icons. Proven by
+tools: `npm run bot` (all six finish in the real page), `npm run touch` (seven cases with
+real touch events: press/hold/release, each scheme's lean, restart, tuning-sheet gesture,
+menu), `npm run offline` (boots with the network off, no request leaves the origin).
+
+## Unverified — what only the phone can answer
+
+1. **Frame rate.** Nothing is known. Headless is a software renderer at ~2 fps. Run the
+   Benchmark (tuning sheet). If no budget holds 60 fps that is pillar 4 and I stop and
+   rethink rather than switch to meshes.
+2. **Feel.** The bot proves runs can be finished, not that swinging is good. Which control
+   scheme, and every Swing / Anchors / Camera slider, is a guess until a thumb tries it.
+3. **Sound.** Never heard. It compiles and its graph is sane; it may be ugly.
+4. **Safari specifics.** Partial texture uploads, the crisp upscale, audio unlock, Home
+   Screen resume, service-worker updates: all only tested in Chromium.
+5. **Run length.** The near-perfect bot takes 24–42 s. If a clean human run is under 30 s
+   the streets should be longer.
+6. **Mid-distance shimmer** (3.4 % of pixels per frame at speed, in window grids 40–150 m
+   away): acceptable in sequences here; judge it in motion on the real screen.
+
+Known and left: saved scripts do not record the tuning they were made with (nothing
+replays them yet; ghosts are stored positions and are unaffected); no save migration
+(format version 1); audio constants are a separate table not shown in the tuning sheet;
+"The Drop" does not yet look as tall at its start as its idea deserves.

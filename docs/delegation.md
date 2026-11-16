@@ -16,9 +16,13 @@ architecture, run design and final judgement.
 | 8 | M1 | Menu / HUD / result card (src/game/ui.ts) | sonnet | Good; pixel font drawn in CSS, no assets. | None so far |
 | 9 | M3 | Offline shell: icons, manifest, service worker as a Vite plugin (tools/vite-pwa.ts) | sonnet | Good; had to verify on a probe build because the render module did not exist yet. | Re-verified on the real build in task 11. |
 | 10 | M1 | Page bot (tools/bot.mjs) | — (did it myself) | 40 lines; quicker to write than to brief. | — |
-| 11 | M1 | Emulated touch test + offline test on the real build | sonnet | see below | |
-| 12 | M1 | Blind review of the whole tree against the plan | opus (read-only) | see below | |
+| 11 | M1 | Emulated touch test + offline test on the real build (tools/touch-test.mjs, offline-test.mjs) | sonnet | Good. Seven touch cases pass through real touch events; offline boot passes. Found on its own that the tuning-sheet triple tap started the run (the reviewer found the same; fixed while it worked). | None. Slow to run here (minutes): headless frames are about 2 per second. |
+| 12 | M1 | Blind review of the whole tree against the plan | opus (read-only) | Excellent: 19 findings, nearly all real. The benchmark was timing a still camera and hiding stalls; a restart within 0.9 s of the line lost the run; the reticle and the grab used different aim. Six minutes. | I fixed 1–5, 7–13, 15–18 myself. Left: 6 (saved scripts do not record tuning; nothing replays them yet), 19 (no save migration; version is 1), part of 14 (audio constants are still their own table). |
 
 Routing notes so far: nothing has needed haiku — every mechanical job was smaller than its
 brief. Sonnet has not failed a task; the cost is in tasks where it must read a lot (2).
 Opus is worth it for work that needs its own measure-and-iterate loop (5).
+
+Adjustments made: the blind review is the best value of anything delegated and now runs
+before I call a milestone done, not after. Tool-writing briefs must say that headless
+frames take about half a second, so tests wait on state, never on time.
