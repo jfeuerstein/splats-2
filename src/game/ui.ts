@@ -65,7 +65,7 @@ const CSS = `
 .wl .rb:active i{background:#f7d354}
 .wl .fill{position:absolute;top:calc(var(--st) + var(--px)*7);right:calc(50% + var(--px)*8);font-size:calc(var(--px)*8);
   background:rgba(244,239,230,.7);padding:calc(var(--px)*1.5) calc(var(--px)*3);min-width:calc(var(--px)*22);text-align:right;letter-spacing:.04em}
-.wl .hint{position:absolute;left:0;right:0;bottom:max(22%,calc(var(--sb) + 120px));display:flex;justify-content:center;padding:0 calc(var(--px)*10);transition:opacity .3s linear}
+.wl .hint{position:absolute;left:0;right:0;bottom:max(9%,calc(var(--sb) + 40px));display:flex;justify-content:center;padding:0 calc(var(--px)*10);transition:opacity .3s linear}
 .wl .hint.hid{transition:opacity .3s linear,visibility 0s .3s}
 .wl .plate{background:#f4efe6;border:calc(var(--px)*1) solid #2b2a4a;box-shadow:calc(var(--px)*1.5) calc(var(--px)*1.5) 0 #2b2a4a;padding:calc(var(--px)*3) calc(var(--px)*5);text-align:center;max-width:100%}
 .wl .hn{font-size:calc(var(--px)*5);letter-spacing:.2em;color:#a9aab3;color:#8a4a3c}

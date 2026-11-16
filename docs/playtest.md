@@ -6,6 +6,10 @@ says what to try on the phone and what to send back.
 
 ## Set up (once)
 
+0. One repo setting first: GitHub → Settings → Pages → Source: **GitHub Actions**. Then re-run
+   the failed "Deploy to GitHub Pages" workflow (or push anything). If the deploy job is then
+   refused for this branch, open Settings → Environments → github-pages and allow the branch
+   (or merge to the default branch).
 1. Open `https://jfeuerstein.github.io/splats-2/` in Safari on the iPhone.
 2. Share → Add to Home Screen. Launch it from the icon (full screen, no Safari bars).
 3. After one launch it works offline (try Airplane Mode once).
@@ -48,9 +52,11 @@ Play run 1 (First Line) for five minutes on each control scheme before judging.
    - A · Drag lean: is 70 px of travel right? Does your thumb drift off-centre over a run?
    - B · Thumb position: does pressing off-centre grab the wrong line by accident?
    - C · Timing only: is it boring, or is it the right floor?
-5. **Missing.** Miss on purpose. Is dropping to a jog a fair cost? Is getting back on a
+5. **Holding early.** A held thumb keeps reaching and takes the first anchor that comes
+   into reach. Does that feel helpful, or does it grab too soon with a poor arc?
+6. **Missing.** Miss on purpose. Is dropping to a jog a fair cost? Is getting back on a
    line quick, or do you wait around? Does the wall scramble look acceptable?
-6. **Restart.** Tap ↻ mid-run. Is it instant? Is "press to go" right, or should it launch
+7. **Restart.** Tap ↻ mid-run. Is it instant? Is "press to go" right, or should it launch
    by itself?
 
 ## Camera
@@ -70,13 +76,16 @@ Play run 1 (First Line) for five minutes on each control scheme before judging.
 - Is the upscale crisp (hard square pixels), or blurry? (If blurry, tell me the iPhone
   model and iOS version.)
 - Does colour arriving feel like a reward? Is the pale city too bare before you paint it?
+  Can you see it arrive, or does it mostly happen below the screen? (Paint → "Paint lands
+  this many s ahead", "Paint reach at full speed".)
+- Is 80–90 % fill on a clean run too generous? What did your first few runs score?
 - With the best run shown as light stipple during a run (Paint → "How strongly the best
   run shows"): helpful, or confusing?
 
 ## Runs
 
 For each of the six: did you understand the idea without reading the hint? Roughly how
-long did a clean run take (30–90 s is the target; my bot does 24–40 s)? Which one would
+long did a clean run take (30–90 s is the target; my bot, close to a perfect player, does 24–42 s)? Which one would
 you replay, and which would you skip?
 
 ## Sound (I have never heard it)
