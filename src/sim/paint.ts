@@ -87,3 +87,15 @@ export function mergeMax(map: Uint8Array, mask: Uint32Array, values: Uint8Array,
     if (v > map[mask[i]]) map[mask[i]] = v;
   }
 }
+
+/**
+ * Paint for one moment of a run: a disc centred a little ahead of the runner (so the colour
+ * arrives where the camera is looking), sized by speed. Returns the strength (0 = no paint).
+ */
+export function stampRun(map: Uint8Array, px: number, pz: number, vx: number, vy: number, vz: number, T: Tuning): number {
+  const [r, k] = brush(Math.hypot(vx, vy, vz), T);
+  if (r <= 0) return 0;
+  stamp(map, px, pz, Math.min(r, T.paintRadiusMin), k); // never leave a gap under the runner
+  stamp(map, px + vx * T.paintLead, pz + vz * T.paintLead, r, k);
+  return k;
+}

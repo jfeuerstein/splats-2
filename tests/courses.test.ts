@@ -4,7 +4,7 @@ import { courseWorld, district } from "../src/world/district";
 import { runBot, runScript } from "../src/sim/bot";
 import { initState, step } from "../src/sim/sim";
 import { SCRIPTS } from "../src/world/scripts";
-import { brush, coverage, courseMask, newPaint, stamp } from "../src/sim/paint";
+import { coverage, courseMask, newPaint, stampRun } from "../src/sim/paint";
 
 const T = defaults();
 const d = district();
@@ -33,7 +33,7 @@ describe("the six runs", () => {
       const fill = (script: number[]) => {
         const map = newPaint();
         runScript(w, T, script, 200, (s) => {
-          if (s.tick % 6 === 0) { const [r, k] = brush(Math.hypot(s.vx, s.vy, s.vz), T); if (r > 0) stamp(map, s.px, s.pz, r, k); }
+          if (s.tick % 6 === 0) stampRun(map, s.px, s.pz, s.vx, s.vy, s.vz, T);
         });
         return coverage(map, mask);
       };

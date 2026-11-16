@@ -236,7 +236,10 @@ export class Trail {
     for (let i = 0; i < 24; i++) {
       const a = (this.age[i] += dt);
       if (a > 0.7) continue;
-      add(c, this.x[i], this.y[i] + a * 0.6, this.z[i], 0.3 * (1 - a / 0.7), this.col[i]);
+      // sparks fall behind toward the camera: cap their size on screen (about 2 px radius)
+      const dist = Math.hypot(this.x[i] - c.cx, this.y[i] - c.cy, this.z[i] - c.cz);
+      if (dist < 1.5) continue;
+      add(c, this.x[i], this.y[i] + a * 0.6, this.z[i], Math.min(0.3 * (1 - a / 0.7), 2 * c.pxPerM * dist), this.col[i]);
     }
   }
 }
