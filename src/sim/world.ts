@@ -87,7 +87,7 @@ export function projectGuide(w: SimWorld, x: number, z: number, hint: number, ou
     const uc = Math.min(i === n - 1 ? Infinity : len, Math.max(i === 0 ? -Infinity : 0, u));
     const px = ax + tx * uc, pz = az + tz * uc;
     const d = (x - px) * (x - px) + (z - pz) * (z - pz);
-    if (d < best) {
+    if (d <= best) {
       best = d;
       u = uc;
       out.s = w.cum[i] + u;
@@ -118,5 +118,18 @@ export function anchorPos(a: Anchor, t: number, u: number, sag: number, out: V3)
     z += a.move.axis[2] * k;
   }
   out[0] = x; out[1] = y; out[2] = z;
+  return out;
+}
+
+/** Point on the guide at progress s (clamped past the ends along the end segments). */
+export function guidePoint(w: SimWorld, s: number, out: V3): V3 {
+  const g = w.course.guide, cum = w.cum;
+  let i = 0;
+  while (i < g.length - 2 && s > cum[i + 1]) i++;
+  const len = cum[i + 1] - cum[i] || 1;
+  const u = (s - cum[i]) / len;
+  out[0] = g[i][0] + (g[i + 1][0] - g[i][0]) * u;
+  out[1] = 0;
+  out[2] = g[i][2] + (g[i + 1][2] - g[i][2]) * u;
   return out;
 }

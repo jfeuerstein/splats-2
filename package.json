@@ -11,7 +11,8 @@
     "check": "tsc --noEmit && vitest run",
     "shoot": "node tools/shoot.mjs",
     "touch": "node tools/touch-test.mjs",
-    "bot": "node tools/bot.mjs"
+    "bot": "node tools/bot.mjs",
+    "scripts": "vite-node tools/gen-scripts.ts"
   },
   "dependencies": {
     "@sparkjsdev/spark": "2.4.0",

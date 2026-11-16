@@ -3,7 +3,7 @@
 // use cloneState() to branch. Ghosts, the bot and the unit tests all rely on this.
 
 import type { Tuning } from "../tuning";
-import { anchorPos, heightAt, projectGuide, type GuideHit, type SimWorld, type V3 } from "./world";
+import { anchorPos, guidePoint, heightAt, projectGuide, type GuideHit, type SimWorld, type V3 } from "./world";
 
 export const HZ = 120;
 export const DT = 1 / HZ;
@@ -74,6 +74,33 @@ export function cloneState(s: SimState): SimState {
 const _hit: GuideHit = { s: 0, seg: 0, tx: 1, tz: 0, lat: 0 };
 const _a: V3 = [0, 0, 0];
 
+const _c: V3 = [0, 0, 0];
+const _dir = { x: 1, z: 0 };
+
+/**
+ * Direction (unit, horizontal) from the runner to a point further along the guide.
+ * Everything that "follows the course" (aim, quiet steering, the jog) uses this, so corners
+ * are anticipated rather than reacted to.
+ */
+function carrot(s: SimState, w: SimWorld, T: Tuning, ahead: number): { x: number; z: number } {
+  guidePoint(w, s.progress + ahead, _c);
+  const dx = _c[0] - s.px, dz = _c[2] - s.pz;
+  const l = Math.hypot(dx, dz) || 1;
+  _dir.x = dx / l; _dir.z = dz / l;
+  return _dir;
+}
+
+/** -1..1: how hard to lean (positive = right) to head for the course line ahead. */
+export function steerWant(s: SimState, w: SimWorld, T: Tuning): number {
+  const sph = Math.hypot(s.vx, s.vz);
+  if (sph < 1) return 0;
+  const c = carrot(s, w, T, T.lookBase + sph * T.lookTime);
+  // sin of the angle from velocity to carrot, positive when the carrot is to the right
+  const cross = (s.vx * c.z - s.vz * c.x) / sph;
+  const k = cross * T.steerGain;
+  return k < -1 ? -1 : k > 1 ? 1 : k;
+}
+
 export interface Pick { anchor: number; u: number; score: number; x: number; y: number; z: number }
 
 /**
@@ -82,16 +109,16 @@ export interface Pick { anchor: number; u: number; score: number; x: number; y: 
  */
 export function pickAnchor(s: SimState, lean: number, w: SimWorld, T: Tuning, out: Pick): boolean {
   const t = s.tick * DT;
-  projectGuide(w, s.px, s.pz, s.seg, _hit);
-  // Aim: velocity heading, pulled toward the course, turned by lean.
+  // Aim: velocity heading, pulled toward the course ahead, turned by lean.
   const sp = Math.hypot(s.vx, s.vz);
+  const cr = carrot(s, w, T, T.lookBase + sp * T.lookTime);
   let hx: number, hz: number;
   if (s.mode === GROUND || sp < 2) {
-    hx = _hit.tx; hz = _hit.tz;
+    hx = cr.x; hz = cr.z;
   } else {
     const k = T.aimCourse;
-    hx = (s.vx / sp) * (1 - k) + _hit.tx * k;
-    hz = (s.vz / sp) * (1 - k) + _hit.tz * k;
+    hx = (s.vx / sp) * (1 - k) + cr.x * k;
+    hz = (s.vz / sp) * (1 - k) + cr.z * k;
     const l = Math.hypot(hx, hz) || 1;
     hx /= l; hz /= l;
   }
@@ -135,7 +162,6 @@ export function pickAnchor(s: SimState, lean: number, w: SimWorld, T: Tuning, ou
     const an = angle / cone, dn = (f - idealF) / idealF, un = (dy - idealUp) / idealUp;
     let score = -T.wAngle * an * an - T.wDist * dn * dn - T.wUp * un * un;
     if (i === s.lastAnchor) score -= T.wRepeat;
-    // Prefer anchors that are further along the course.
     if (score > best) {
       best = score;
       out.anchor = i; out.u = u; out.score = score;
@@ -207,8 +233,9 @@ export function step(s: SimState, input: Input, w: SimWorld, T: Tuning): void {
     // --- jog along the course, steering back to the line
     let sp = Math.hypot(s.vx, s.vz);
     sp = T.jog + (sp - T.jog) * Math.exp(-T.groundDecel * DT);
-    const pull = Math.max(-1, Math.min(1, -_hit.lat / 6));
-    let dx = _hit.tx + -_hit.tz * pull, dz = _hit.tz + _hit.tx * pull;
+    const cg = carrot(s, w, T, 8);
+    // Turn the heading toward the course at a limited rate so the jog rounds corners.
+    let dx = s.hx + (cg.x - s.hx) * 0.08, dz = s.hz + (cg.z - s.hz) * 0.08;
     const dl = Math.hypot(dx, dz) || 1;
     dx /= dl; dz /= dl;
     s.hx = dx; s.hz = dz;
@@ -221,9 +248,8 @@ export function step(s: SimState, input: Input, w: SimWorld, T: Tuning): void {
       if (s.py >= hAhead) { s.px = nx; s.pz = nz; }
     } else {
       s.px = nx; s.pz = nz;
-      const h = heightAt(w, nx, nz);
-      if (h < s.py - 0.5) s.mode = AIR; // ran off an edge
-      else s.py = h;
+      if (hAhead < s.py - 0.5) s.mode = AIR; // ran off an edge
+      else s.py = hAhead;
     }
   } else {
     // --- air and swing share integration
@@ -235,9 +261,8 @@ export function step(s: SimState, input: Input, w: SimWorld, T: Tuning): void {
     let fx = _hit.tx, fz = _hit.tz;
     if (sph > 1.5) { fx = s.vx / sph; fz = s.vz / sph; }
     const rx = -fz, rz = fx;
-    // Quiet steering back toward the course line.
-    const latV = s.vx * -_hit.tz + s.vz * _hit.tx;
-    const want = Math.max(-1, Math.min(1, -(_hit.lat * 0.12 + latV * 0.1)));
+    // Quiet steering toward the course line ahead.
+    const want = steerWant(s, w, T);
     if (swing) {
       let lean = leanIn + want * T.assistSteer * (1 - Math.abs(leanIn));
       lean = lean < -1 ? -1 : lean > 1 ? 1 : lean;
@@ -249,7 +274,7 @@ export function step(s: SimState, input: Input, w: SimWorld, T: Tuning): void {
       }
     } else {
       const k = want * T.assistAir;
-      ax += -_hit.tz * k; az += _hit.tx * k;
+      ax += rx * k; az += rz * k;
     }
     // Wind
     const ws = w.course.wind;
@@ -324,7 +349,8 @@ export function step(s: SimState, input: Input, w: SimWorld, T: Tuning): void {
       } else if (s.vy <= 0) {
         s.mode = GROUND;
         s.vx *= T.landKeep; s.vz *= T.landKeep; s.vy = 0;
-        s.hx = _hit.tx; s.hz = _hit.tz;
+        const sl = Math.hypot(s.vx, s.vz);
+        if (sl > 0.5) { s.hx = s.vx / sl; s.hz = s.vz / sl; } else { s.hx = _hit.tx; s.hz = _hit.tz; }
         s.ev |= EV_LAND;
       }
     }

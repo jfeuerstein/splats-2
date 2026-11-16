@@ -12,6 +12,9 @@ export const DEFS = {
   leanCurve: [1.4, 0.5, 3, 0.1, "Controls", "Lean response curve"],
   zoneWidth: [0.7, 0.3, 1, 0.05, "Controls", "B: screen width used"],
   assistSteer: [0.35, 0, 1, 0.05, "Controls", "Auto-steer toward the line"],
+  steerGain: [2.2, 0.2, 6, 0.1, "Controls", "Auto-steer sharpness"],
+  lookBase: [10, 2, 30, 1, "Controls", "Course look-ahead m"],
+  lookTime: [0.6, 0, 2, 0.05, "Controls", "…plus speed × s"],
   assistAir: [6, 0, 20, 0.5, "Controls", "Air drift toward line m/s²"],
   holdBuffer: [0.35, 0, 1, 0.05, "Controls", "Early-press buffer s"],
 
@@ -74,8 +77,10 @@ export const DEFS = {
   paintFullSpeed: [30, 10, 60, 1, "Paint", "Full paint at m/s"],
   paintRadius: [13, 2, 30, 0.5, "Paint", "Paint reach at full speed m"],
   paintRadiusMin: [3, 0, 15, 0.5, "Paint", "Paint reach at min speed m"],
+  bestShow: [0.55, 0, 1, 0.05, "Paint", "How strongly the best run shows during a run"],
 
   // --- look
+  budget: [100, 30, 300, 10, "Look", "Splat budget (thousands)"],
   lowW: [200, 120, 400, 10, "Look", "Render width px"],
   splatScale: [0.62, 0.3, 1.2, 0.01, "Look", "Splat size ÷ cell"],
   lodNear: [55, 10, 200, 5, "Look", "Fine → mid detail at m"],

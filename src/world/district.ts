@@ -104,21 +104,32 @@ export function buildDistrict(): District {
     props.push({ kind: "lamp", x, y, z });
   };
 
+  /**
+   * String anchors along a street from s0 to s1 (coordinates along the street axis, either
+   * direction). Between walls it is a washing line; in an intersection it is a lamp on a cable.
+   */
+  const strand = (axis: "x" | "z", c: number, s0: number, s1: number, spacing: number, y: (s: number, n: number) => number, sag: number) => {
+    const dir = Math.sign(s1 - s0);
+    let n = 0;
+    for (let s = s0; dir * (s1 - s) >= 0; s += dir * spacing, n++) {
+      const m = ((Math.abs(s) % P) + P) % P;
+      const inCross = m < HALF + 1.5 || m > P - HALF - 1.5;
+      const yy = y(s, n);
+      if (inCross) lamp(axis === "x" ? c : s, yy, axis === "x" ? s : c);
+      else line(axis, c, s, yy, sag);
+    }
+  };
+
   // ---------------------------------------------------------------- Run 1: First Line
   // Straight street x = 1P, heading -z. Evenly spaced lines, level roofs. Teaches hold / release.
   {
     const i = 1, x = i * P;
     shape("x", i, 0, N - 1, (b, side, k) => 19.2 + ((b * 3 + side * 2 + k) % 3) * 1.6);
-    for (let b = 0; b < N; b++) {
-      const z = -b * P;
-      if (b > 0) lamp(x, 25, z);
-      line("x", x, z - 19, 25, 1.2);
-      line("x", x, z - 41, 25, 1.2);
-    }
+    strand("x", x, -22, -SIZE + 10, 38, () => 26, 1.2);
     courses.push({
       id: "first-line", name: "First Line", idea: "Hold to swing, let go to fly.",
       hint: "Hold as you fall. Let go on the way up.",
-      guide: [node(i, 0), node(i, N)], start: [x, 20, -2], startSpeed: 10,
+      guide: [node(i, 0), node(i, N)], start: [x, 21, -2], startSpeed: 10,
     });
   }
 
@@ -128,21 +139,24 @@ export function buildDistrict(): District {
   {
     const i = 3, x = i * P;
     shape("x", i, 0, N - 1, (b, side, k) => 17.6 + ((b + side + k) % 2) * 3.2);
-    for (let b = N - 1; b >= 0; b--) {
-      const zc = -b * P - P / 2;
-      if (b < N - 1) lamp(x, 24, -(b + 1) * P);
-      line("x", x, zc + 11, 24, 5.5);
-      line("x", x, zc - 11, 24, 5.5);
-      // A stall under the middle of each block, alternating sides of centre.
-      const off = b % 2 ? 2.5 : -2.5;
-      const st = { x0: x + off - 3, x1: x + off + 3, z0: zc - 5, z1: zc + 5, h: 6.4 };
-      extra.push(st);
-      props.push({ kind: "stall", x: x + off, y: 0, z: zc, a: b });
+    let n = 0;
+    for (let z = -SIZE + 22; z < -12; z += 36, n++) {
+      const m = ((-z % P) + P) % P;
+      if (m < HALF + 1.5 || m > P - HALF - 1.5) { lamp(x, 25, z); continue; }
+      line("x", x, z, 25, 6);
+      // A stall a little past each line, alternating sides of the street centre.
+      const off = n % 2 ? 3 : -3;
+      const zs = z + 13;
+      const ms = ((-zs % P) + P) % P;
+      if (ms > HALF + 6 && ms < P - HALF - 6) {
+        extra.push({ x0: x + off - 3, x1: x + off + 3, z0: zs - 4, z1: zs + 4, h: 6.4 });
+        props.push({ kind: "stall", x: x + off, y: 0, z: zs, a: n });
+      }
     }
     courses.push({
       id: "slack", name: "Slack", idea: "Lines sag most in the middle.",
       hint: "Slide your thumb to hang nearer a pole: tighter, higher swing.",
-      guide: [node(i, N), node(i, 0)], start: [x, 20, -N * P + 2], startSpeed: 10,
+      guide: [node(i, N), node(i, 0)], start: [x, 21, -N * P + 2], startSpeed: 10,
     });
   }
 
@@ -152,37 +166,22 @@ export function buildDistrict(): District {
     shape("z", 2, 0, 4, (b, s, k) => 20.8 + ((b + s * k) % 2) * 1.6);
     shape("x", 5, 2, 5, (b, s, k) => 20.8 + ((b + s + k) % 2) * 1.6);
     shape("z", 6, 5, 8, (b, s, k) => 20.8 + ((b * s + k) % 2) * 1.6);
-    const y = 26;
-    for (let b = 0; b < 5; b++) {
-      const xs = b * P;
-      if (b > 0) lamp(xs, y, -2 * P);
-      line("z", -2 * P, xs + 19, y, 1.2);
-      line("z", -2 * P, xs + 41, y, 1.2);
-    }
-    for (let b = 2; b < 6; b++) {
-      const zs = -b * P;
-      if (b > 2) lamp(5 * P, y, zs);
-      line("x", 5 * P, zs - 19, y, 1.2);
-      line("x", 5 * P, zs - 41, y, 1.2);
-    }
-    for (let b = 5; b < N; b++) {
-      const xs = b * P;
-      if (b > 5) lamp(xs, y, -6 * P);
-      line("z", -6 * P, xs + 19, y, 1.2);
-      line("z", -6 * P, xs + 41, y, 1.2);
-    }
+    const y = () => 27;
+    strand("z", -2 * P, 24, 5 * P - 30, 36, y, 1.2);
+    strand("x", 5 * P, -2 * P - 30, -6 * P + 30, 36, y, 1.2);
+    strand("z", -6 * P, 5 * P + 30, SIZE - 10, 36, y, 1.2);
     // Corner pivots: tall antennas on the inside corner roofs.
     const ant = (x: number, z: number, lx: number, lz: number) => {
       setH(lx, lz, 22.4);
       anchors.push({ kind: "point", a: [x, 31, z], look: "antenna" });
       props.push({ kind: "antenna", x, y: 22.4, z, a: 31 - 22.4 });
     };
-    ant(5 * P - HALF - 1, -2 * P - HALF - 1, 9, 4); // right turn (east → south): inside is south-west... see guide
-    ant(5 * P + HALF + 1, -6 * P + HALF + 1, 10, 11); // left turn (south → east)
+    ant(5 * P - HALF - 2, -2 * P - HALF - 2, 9, 4); // east → south: inside corner is the south-west block
+    ant(5 * P + HALF + 2, -6 * P + HALF + 2, 10, 11); // south → east: inside corner is the north-east block
     courses.push({
       id: "corner", name: "Corner", idea: "Lean to carry speed round a turn.",
       hint: "Slide toward the turn while you hold. The antenna is the pivot.",
-      guide: [node(0, 2), node(5, 2), node(5, 6), node(9, 6)], start: [2, 21, -2 * P], startSpeed: 10,
+      guide: [node(0, 2), node(5, 2), node(5, 6), node(9, 6)], start: [2, 22, -2 * P], startSpeed: 10,
     });
   }
 
@@ -192,28 +191,22 @@ export function buildDistrict(): District {
     const i = 7, x = i * P;
     shape("x", i, 0, N - 1, (b, side, k) => 9.6 + ((b * 5 + side * 3 + k) % 4) * 1.6);
     let n = 0;
-    for (let b = 0; b < N; b++) {
-      const z0 = -b * P;
-      for (const dz of [0, -30]) {
-        if (b === 0 && dz === 0) continue;
-        const z = z0 + dz;
-        const side = n % 2 ? 1 : -1;
-        const across = n % 3 !== 2;
-        const y = 25 + (n % 2) * 2;
-        anchors.push({
-          kind: "point", a: [x, y, z], look: "crane",
-          move: across
-            ? { axis: [5.5, 0, 0], period: 3.6 + (n % 3) * 0.5, phase: (n * 0.37) % 1 }
-            : { axis: [0, 3.5, 0], period: 3.0, phase: (n * 0.41) % 1 },
-        });
-        props.push({ kind: "crane", x: x + side * (HALF + 6), y: 0, z, a: y + 3, b: -side, c: across ? 0 : 1 });
-        n++;
-      }
+    for (let z = -24; z > -SIZE + 8; z -= 40, n++) {
+      const side = n % 2 ? 1 : -1;
+      const across = n % 3 !== 2;
+      const y = 26 + (n % 2) * 2;
+      anchors.push({
+        kind: "point", a: [x, y, z], look: "crane",
+        move: across
+          ? { axis: [5.5, 0, 0], period: 3.6 + (n % 3) * 0.5, phase: (n * 0.37) % 1 }
+          : { axis: [0, 3.5, 0], period: 3.0, phase: (n * 0.41) % 1 },
+      });
+      props.push({ kind: "crane", x: x + side * (HALF + 6), y: 0, z, a: y + 4, b: -side, c: across ? 0 : 1 });
     }
     courses.push({
       id: "crane-yard", name: "Crane Yard", idea: "Anchors that move.",
       hint: "Watch the hook, not the crane. Grab when it swings your way.",
-      guide: [node(i, 0), node(i, N)], start: [x, 20, -2], startSpeed: 12,
+      guide: [node(i, 0), node(i, N)], start: [x, 21, -2], startSpeed: 12,
     });
   }
 
@@ -223,26 +216,22 @@ export function buildDistrict(): District {
     const j = 8, z = -j * P;
     shape("z", j, 0, N - 1, (b, side, k) => 14.4 + ((b + side * 2 + k) % 3) * 1.6);
     let n = 0;
+    for (let kx = SIZE - 24; kx > 8; kx -= 38, n++) {
+      anchors.push({
+        kind: "point", a: [kx, 27, z + ((n % 3) - 1) * 2.5], look: "kite",
+        move: { axis: [0, 1.2, 1.5], period: 2.6 + (n % 4) * 0.3, phase: (n * 0.29) % 1 },
+      });
+    }
+    // Wind blows across the street in alternating blocks, with a calm block between.
     for (let b = N - 1; b >= 0; b--) {
-      const xc = b * P + P / 2;
-      for (const dx of [15, -15]) {
-        const kx = xc + dx;
-        anchors.push({
-          kind: "point", a: [kx, 26, z + ((n % 3) - 1) * 2], look: "kite",
-          move: { axis: [0, 1.2, 1.5], period: 2.6 + (n % 4) * 0.3, phase: (n * 0.29) % 1 },
-        });
-        n++;
-      }
-      // Wind blows across the street in alternating blocks, with a calm block between.
-      if (b % 3 !== 1) {
-        const dir = b % 3 === 0 ? 1 : -1;
-        wind.push({ x0: b * P + HALF, x1: (b + 1) * P - HALF, z0: z - 14, z1: z + 14, y0: 0, y1: 60, accel: [0, 1.5, dir * 7] });
-      }
+      if (b % 3 === 1) continue;
+      const dir = b % 3 === 0 ? 1 : -1;
+      wind.push({ x0: b * P + HALF, x1: (b + 1) * P - HALF, z0: z - 14, z1: z + 14, y0: 0, y1: 60, accel: [0, 1.5, dir * 7] });
     }
     courses.push({
       id: "kite-wind", name: "Kite Wind", idea: "Wind pushes the swing sideways.",
       hint: "Lean into the wind. The washing shows which way it blows.",
-      guide: [node(N, j), node(0, j)], start: [N * P - 2, 20, z], startSpeed: 12,
+      guide: [node(N, j), node(0, j)], start: [N * P - 2, 21, z], startSpeed: 12,
     });
   }
 
@@ -253,14 +242,8 @@ export function buildDistrict(): District {
     const j = 4, z = -j * P;
     shape("z", j, 0, 3, (b, s, k) => 41.6 + ((b + s + k) % 2) * 3.2);
     shape("z", j, 4, N - 1, (b, s, k) => 12.8 + ((b * 2 + s + k) % 3) * 1.6);
-    for (let b = 0; b < N; b++) {
-      const xs = b * P;
-      const high = b < 4;
-      const y = high ? 50 : b === 4 ? 30 : 20;
-      if (b > 0) lamp(xs, b === 4 ? 44 : y, z);
-      line("z", z, xs + 19, y, 1.2);
-      line("z", z, xs + 41, b === 4 ? 22 : y, 1.2);
-    }
+    strand("z", z, 22, 4 * P - 24, 38, () => 51, 1.2);
+    strand("z", z, 4 * P + 28, SIZE - 10, 38, () => 22, 1.2);
     courses.push({
       id: "the-drop", name: "The Drop", idea: "Fall is speed. Catch it low.",
       hint: "After the towers, let go and fall. Hold again late.",
